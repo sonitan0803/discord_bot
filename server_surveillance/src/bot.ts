@@ -23,7 +23,6 @@ const checkUrlStatus = async (url: string) => {
 
 const sendDiscordMessage = async (message: string) => {
     const channel = await client.channels.fetch(channelId);
-    console.log(channel); // チャンネル情報をログに出力
 
     // チャンネルがTextChannelまたはDMChannelであることを確認
     if (channel instanceof TextChannel || channel instanceof DMChannel) {
@@ -33,24 +32,31 @@ const sendDiscordMessage = async (message: string) => {
     }
 };
 
-// 1時間ごとにURLをチェックするcronジョブ
-const urlToCheck = "https://yourwebsite.com"; // チェックしたいURLをここに貼り付け
+
+const checkURL:string[] = [
+    "https://tech-blog.sonitan-lab.com",
+    "https://sonitan-lab.com",
+    "https://hiragana-quiz.etolog.jp/",
+    "https://child-study.etolog.jp/",
+    process.env.SUPABASE_URL ? process.env.SUPABASE_URL:""
+]
+
+const checkUrl = async () => {
+    const resultList = await Promise.all(
+        checkURL.map((url) => 
+            checkUrlStatus(url))
+    );
+    sendDiscordMessage(`${resultList.map((r, i) => `${checkURL[i]}: ${r ? "✅" : "❌"}`).join("\n")}`);
+}
 
 const cronJob = new CronJob("0 10 * * *", async () => {
     // 毎日10時に実行
-    const isWebsiteUp = await checkUrlStatus(urlToCheck);
-    if (!isWebsiteUp) {
-        sendDiscordMessage(
-            `❌ ウェブサイト ${urlToCheck} はダウンしています！`,
-        );
-    } else {
-        sendDiscordMessage(`✅ ウェブサイト ${urlToCheck} は正常です。`);
-    }
+    await checkUrl()
 });
 
 client.once("clientReady", () => {
-    console.log("ボットが起動しました！");
     sendDiscordMessage("ボットが起動しました！");
+    checkUrl()
 
     cronJob.start();
 });
